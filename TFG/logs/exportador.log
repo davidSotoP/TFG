@@ -1,0 +1,8 @@
+2024-02-28 13:25:07,210 INFO e.ExportadorApplication [restartedMain] Starting ExportadorApplication on DESKTOP-0ON6AJ0 with PID 26080 (C:\Users\David\eclipse-workspace\TFG\target\classes started by David in C:\Users\David\eclipse-workspace\TFG)
+2024-02-28 13:25:07,216 DEBUG e.ExportadorApplication [restartedMain] Running with Spring Boot v2.1.7.RELEASE, Spring v5.1.9.RELEASE
+2024-02-28 13:25:07,217 INFO e.ExportadorApplication [restartedMain] No active profile set, falling back to default profiles: default
+2024-02-28 13:25:11,560 INFO e.ExportadorApplication [restartedMain] Started ExportadorApplication in 4.869 seconds (JVM running for 5.765)
+2024-02-28 13:29:22,592 INFO e.ExportadorApplication [restartedMain] Starting ExportadorApplication on DESKTOP-0ON6AJ0 with PID 26080 (C:\Users\David\eclipse-workspace\TFG\target\classes started by David in C:\Users\David\eclipse-workspace\TFG)
+2024-02-28 13:29:22,592 DEBUG e.ExportadorApplication [restartedMain] Running with Spring Boot v2.1.7.RELEASE, Spring v5.1.9.RELEASE
+2024-02-28 13:29:22,592 INFO e.ExportadorApplication [restartedMain] No active profile set, falling back to default profiles: default
+2024-02-28 13:29:23,636 INFO e.ExportadorApplication [restartedMain] Started ExportadorApplication in 1.088 seconds (JVM running for 257.841)

@@ -1,0 +1,16 @@
+exportador\configuration\ExportadorRoles.class
+exportador\configuration\RestExceptionHandler.class
+exportador\ExportadorApplication$SpringDataConfig.class
+exportador\exceptions\BookIdMismatchException.class
+exportador\controller\BookController.class
+exportador\exceptions\BookNotFoundException.class
+exportador\configuration\CustomAuditorAwareImpl.class
+exportador\ExportadorApplication.class
+exportador\services\BookServices.class
+exportador\controller\ExportadorController.class
+exportador\configuration\ExportadorRoles$Roles.class
+exportador\modelos\Book.class
+exportador\modelos\BasicEntity.class
+exportador\configuration\CustomUserDetails.class
+exportador\ExportadorApplication$WebSecurityConfig.class
+exportador\repositorios\BookRepository.class
