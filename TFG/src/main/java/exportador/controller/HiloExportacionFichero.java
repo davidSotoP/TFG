@@ -31,6 +31,10 @@ import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.core.exc.StreamWriteException;
+import com.fasterxml.jackson.databind.DatabindException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public class HiloExportacionFichero extends Thread {
 
 	private static final Logger logger = LogManager.getLogger(HiloExportacionFichero.class);
@@ -85,145 +89,15 @@ public class HiloExportacionFichero extends Thread {
 
 			ResultSetMetaData rsmd = result.getMetaData();
 
-			int NumOfCol = rsmd.getColumnCount();
-			List<Map<Object, Class<?>>> lista = new ArrayList<>();
-			while (result.next()) {
-				logger.info("");
-				objeto = new HashMap<>();
-				for (int i = 1; i <= NumOfCol; i++) {
-					String column = rsmd.getColumnTypeName(i).toUpperCase();
-					objeto.put(result.getObject(i), TYPE.get(column));
-				}
-				lista.add(objeto);
+			int numeroCol = rsmd.getColumnCount();
+			
+			if(StringUtils.equals(extensionFichero, "csv")) {
+				exportarCSV(result, rsmd, numeroCol);
+			} else if(StringUtils.equals(extensionFichero, "json")) {
+				exportarJson(result, numeroCol);
 			}
-
-			List<String> filas = new ArrayList<>();
-			for (Map<Object, Class<?>> mapa : lista) {
-				String fila = StringUtils.EMPTY;
-				for (Object objeto : mapa.keySet()) {
-					Class<?> clase = mapa.get(objeto);
-					String claseString = clase.getName();
-					switch (claseString) {
-						case "java.lang.Integer":
-							Integer numero = (Integer) objeto;
-							if (filaVacia(fila)) {
-								fila = numero.toString();
-							} else {
-	
-								fila = fila + ", " + numero;
-							}
-							break;
-						case "java.lang.Byte":
-							Byte byteObjeto = (Byte) objeto;
-							if (filaVacia(fila)) {
-								fila = byteObjeto.toString();
-							} else {
-	
-								fila = fila + ", " + byteObjeto.toString();
-							}
-							break;
-						case "java.lang.Short":
-							Short shortObjeto = (Short) objeto;
-							if (filaVacia(fila)) {
-								fila = shortObjeto.toString();
-							} else {
-	
-								fila = fila + ", " + shortObjeto.toString();
-							}
-							break;
-						case "java.lang.Long":
-							Long longObjeto = (Long) objeto;
-							if (filaVacia(fila)) {
-								fila = longObjeto.toString();
-							} else {
-								fila = fila + ", " + longObjeto.toString();
-	
-							}
-							break;
-						case "java.lang.Float":
-							Float floatObjeto = (Float) objeto;
-							if (filaVacia(fila)) {
-								fila = floatObjeto.toString();
-							} else {
-	
-								fila = fila + ", " + floatObjeto.toString();
-							}
-							break;
-						case "java.lang.Double":
-							Double doubleObjeto = (Double) objeto;
-							if (filaVacia(fila)) {
-								fila = doubleObjeto.toString();
-							} else {
-	
-								fila = fila + ", " + doubleObjeto.toString();
-							}
-							break;
-						case "java.lang.BigDecimal":
-							BigDecimal bigDecimalObjeto = (BigDecimal) objeto;
-							if (filaVacia(fila)) {
-								fila = bigDecimalObjeto.toString();
-							} else {
-	
-								fila = fila + ", " + bigDecimalObjeto.toString();
-							}
-							break;
-						case "java.lang.Boolean":
-							Boolean booleanObjeto = (Boolean) objeto;
-							if (filaVacia(fila)) {
-								fila = booleanObjeto.toString();
-							} else {
-	
-								fila = fila + ", " + booleanObjeto.toString();
-							}
-							break;
-						case "java.lang.String":
-							String stringObjeto = (String) objeto;
-							if (filaVacia(fila)) {
-								fila = stringObjeto.toString();
-							} else {
-	
-								fila = fila + ", " + stringObjeto;
-							}
-							break;
-						case "java.lang.Date":
-							Date dateObjeto = (Date) objeto;
-							if (filaVacia(fila)) {
-								fila = dateObjeto.toString();
-							} else {
-	
-								fila = fila + ", " + dateObjeto.toString();
-							}
-							break;
-						case "java.lang.Time":
-							Time timeObjeto = (Time) objeto;
-							if (filaVacia(fila)) {
-								fila = timeObjeto.toString();
-							} else {
-	
-								fila = fila + ", " + timeObjeto.toString();
-							}
-							break;
-						case "java.lang.Timestamp":
-							Timestamp timestampObjeto = (Timestamp) objeto;
-							if (filaVacia(fila)) {
-								fila = timestampObjeto.toString();
-							} else {
-	
-								fila = fila + ", " + timestampObjeto.toString();
-							}
-							break;
-						default:
-							logger.error("El tipo {} no está completado en la aplicación", claseString);
-							return;
-						}
-				}
-				filas.add(fila);
-			}
-
-			FileUtils.writeLines(new File("C:\\Users\\David\\Documents\\TFG\\result.csv"), "UTF-8", filas);
-			File file = new File("C:\\\\Users\\\\David\\\\Documents\\\\TFG\\\\result.csv");
-			enviarCorreo(correo, file);
-
+			
+			
 		} catch (SQLException e) {
 			logger.error("Error al obtener la conexión con base de datos. Url de conexión: {}. Causa: {}", urlConexion,
 					e.getMessage());
@@ -300,6 +174,166 @@ public class HiloExportacionFichero extends Thread {
 					+ e.getMessage());
 			e.printStackTrace();
 		}
+	}
+	
+	public void exportarCSV(ResultSet result, ResultSetMetaData rsmd, int NumOfCol) throws SQLException, IOException, MessagingException {
+		List<Map<Object, Class<?>>> lista = new ArrayList<>();
+		while (result.next()) {
+			logger.info("");
+			objeto = new HashMap<>();
+			for (int i = 1; i <= NumOfCol; i++) {
+				String column = rsmd.getColumnTypeName(i).toUpperCase();
+				objeto.put(result.getObject(i), TYPE.get(column));
+			}
+			lista.add(objeto);
+		}
+		
+		List<String> filas = new ArrayList<>();
+		for (Map<Object, Class<?>> mapa : lista) {
+			String fila = StringUtils.EMPTY;
+			for (Object objeto : mapa.keySet()) {
+				Class<?> clase = mapa.get(objeto);
+				String claseString = clase.getName();
+				switch (claseString) {
+					case "java.lang.Integer":
+						Integer numero = (Integer) objeto;
+						if (filaVacia(fila)) {
+							fila = numero.toString();
+						} else {
+
+							fila = fila + ", " + numero;
+						}
+						break;
+					case "java.lang.Byte":
+						Byte byteObjeto = (Byte) objeto;
+						if (filaVacia(fila)) {
+							fila = byteObjeto.toString();
+						} else {
+
+							fila = fila + ", " + byteObjeto.toString();
+						}
+						break;
+					case "java.lang.Short":
+						Short shortObjeto = (Short) objeto;
+						if (filaVacia(fila)) {
+							fila = shortObjeto.toString();
+						} else {
+
+							fila = fila + ", " + shortObjeto.toString();
+						}
+						break;
+					case "java.lang.Long":
+						Long longObjeto = (Long) objeto;
+						if (filaVacia(fila)) {
+							fila = longObjeto.toString();
+						} else {
+							fila = fila + ", " + longObjeto.toString();
+
+						}
+						break;
+					case "java.lang.Float":
+						Float floatObjeto = (Float) objeto;
+						if (filaVacia(fila)) {
+							fila = floatObjeto.toString();
+						} else {
+
+							fila = fila + ", " + floatObjeto.toString();
+						}
+						break;
+					case "java.lang.Double":
+						Double doubleObjeto = (Double) objeto;
+						if (filaVacia(fila)) {
+							fila = doubleObjeto.toString();
+						} else {
+
+							fila = fila + ", " + doubleObjeto.toString();
+						}
+						break;
+					case "java.lang.BigDecimal":
+						BigDecimal bigDecimalObjeto = (BigDecimal) objeto;
+						if (filaVacia(fila)) {
+							fila = bigDecimalObjeto.toString();
+						} else {
+
+							fila = fila + ", " + bigDecimalObjeto.toString();
+						}
+						break;
+					case "java.lang.Boolean":
+						Boolean booleanObjeto = (Boolean) objeto;
+						if (filaVacia(fila)) {
+							fila = booleanObjeto.toString();
+						} else {
+
+							fila = fila + ", " + booleanObjeto.toString();
+						}
+						break;
+					case "java.lang.String":
+						String stringObjeto = (String) objeto;
+						if (filaVacia(fila)) {
+							fila = stringObjeto.toString();
+						} else {
+
+							fila = fila + ", " + stringObjeto;
+						}
+						break;
+					case "java.lang.Date":
+						Date dateObjeto = (Date) objeto;
+						if (filaVacia(fila)) {
+							fila = dateObjeto.toString();
+						} else {
+
+							fila = fila + ", " + dateObjeto.toString();
+						}
+						break;
+					case "java.lang.Time":
+						Time timeObjeto = (Time) objeto;
+						if (filaVacia(fila)) {
+							fila = timeObjeto.toString();
+						} else {
+
+							fila = fila + ", " + timeObjeto.toString();
+						}
+						break;
+					case "java.lang.Timestamp":
+						Timestamp timestampObjeto = (Timestamp) objeto;
+						if (filaVacia(fila)) {
+							fila = timestampObjeto.toString();
+						} else {
+
+							fila = fila + ", " + timestampObjeto.toString();
+						}
+						break;
+					default:
+						logger.error("El tipo {} no está completado en la aplicación", claseString);
+						return;
+					}
+			}
+			filas.add(fila);
+		}
+
+		FileUtils.writeLines(new File("C:\\Users\\David\\Documents\\TFG\\result.csv"), "UTF-8", filas);
+		File file = new File("C:\\\\Users\\\\David\\\\Documents\\\\TFG\\\\result.csv");
+		enviarCorreo(correo, file);
+
+	}
+	
+	public void exportarJson(ResultSet result, int NumOfCol) throws SQLException, StreamWriteException, DatabindException, IOException, MessagingException {
+		List<Map<String, Object>> lista = new ArrayList<>();
+		
+		while (result.next()) {
+            Map<String, Object> row = new HashMap<>();
+            for (int i = 1; i <= NumOfCol; i++) {
+                String columnName = result.getMetaData().getColumnName(i);
+                Object value = result.getObject(i);
+                row.put(columnName, value);
+            }
+            lista.add(row);
+        }
+		
+		ObjectMapper mapper = new ObjectMapper();
+        mapper.writeValue(new File("C:\\Users\\David\\Documents\\TFG\\result.csv"), lista);
+        File file = new File("C:\\\\Users\\\\David\\\\Documents\\\\TFG\\\\result.csv");
+        enviarCorreo(correo, file);
 	}
 
 	static {
