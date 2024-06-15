@@ -9,12 +9,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -48,7 +48,7 @@ public class HiloExportacionFichero extends Thread {
 	private String delimitador;
 	private String correo;
 
-	public Map<Object, Class<?>> objeto;
+	public LinkedHashMap<Object, Class<?>> objeto;
 	public static Map<String, Class<?>> TYPE;
 
 	public HiloExportacionFichero(String urlConexion, String username, String password, String nombreTabla,
@@ -80,16 +80,34 @@ public class HiloExportacionFichero extends Thread {
 		try {
 			connection = DriverManager.getConnection(urlConexion, username, password);
 
-			PreparedStatement select = connection.prepareStatement("Select * from " + nombreTabla.toLowerCase());
+			PreparedStatement select = connection.prepareStatement("Select * from " + nombreTabla.toLowerCase() + " order by x_tabla asc");
 			ResultSet result = select.executeQuery();
-			if (!result.next()) {
-				logger.info("No hay ningún registro que migrar");
-				return;
-			}
-
 			ResultSetMetaData rsmd = result.getMetaData();
 
 			int numeroCol = rsmd.getColumnCount();
+			
+			PreparedStatement obtenerUltimoValor = connection.prepareStatement(
+					"SELECT DISTINCT ON (x_oper) * FROM DC_OPERACIONES ORDER BY x_oper DESC;");
+			ResultSet checkResult = obtenerUltimoValor.executeQuery();
+			if(checkResult.next()) {
+				PreparedStatement insertNuevaEntrada = connection.prepareStatement(
+						"INSERT INTO DC_OPERACIONES(x_oper, nombre_tabla, fecha_inicio, tipo) VALUES (?,?,?,?)");
+				int primaryKey = checkResult.getInt(1);
+				insertNuevaEntrada.setObject(1, primaryKey + 1);
+				insertNuevaEntrada.setObject(2, nombreTabla);
+				insertNuevaEntrada.setObject(3, new java.sql.Date(new Date().getTime()));
+				insertNuevaEntrada.setObject(4, "Importación");
+				insertNuevaEntrada.execute();
+				
+			} else {
+				PreparedStatement insertNuevaEntrada = connection.prepareStatement(
+						"INSERT INTO DC_OPERACIONES(x_oper, nombre_tabla, fecha_inicio, tipo) VALUES (?,?,?,?)");
+				insertNuevaEntrada.setObject(1, new BigDecimal("1"));
+				insertNuevaEntrada.setObject(2, nombreTabla);
+				insertNuevaEntrada.setObject(3, new java.sql.Date(new Date().getTime()));
+				insertNuevaEntrada.setObject(4, "Importación");
+				insertNuevaEntrada.execute();
+			}
 			
 			if(StringUtils.equals(extensionFichero, "csv")) {
 				exportarCSV(result, rsmd, numeroCol);
@@ -133,6 +151,7 @@ public class HiloExportacionFichero extends Thread {
 	    MimeMessageHelper helper = new MimeMessageHelper(message, true);
 
 	    helper.setTo(correo);
+	    helper.setFrom(mailSender.getUsername());
 	    helper.setSubject("Resultado exportación");
 	    helper.setText("Mensaje autogenerado. No responda este correo por favor.");
 
@@ -142,45 +161,11 @@ public class HiloExportacionFichero extends Thread {
 	    mailSender.send(message);
 	}
 
-	public static void main(String[] args) throws SQLException {
-		// Estos serían los parámetros
-		String url = "jdbc:postgresql://localhost:5432/postgres";
-		String user = "postgres";
-		String password = "postgres";
-		String nombreTabla = "PRUEBA";
-
-		Connection connection = null;
-		try {
-			connection = DriverManager.getConnection(url, user, password);
-			Statement stm = connection.createStatement();
-			PreparedStatement createTable = connection.prepareStatement("SELECT * FROM " + nombreTabla);
-			ResultSet rs = createTable.executeQuery();
-			ResultSetMetaData columnas = rs.getMetaData();
-			int numColumna = columnas.getColumnCount();
-			// TODO Pegar datos al csv
-//			for (int i=0; i < numColumna; ++i) {
-//			    String name = columnas.getColumnName(i+1);
-//			    if (i > 0) {
-//			        sb.append(", ");
-//			    }
-//			    sb.append(name);
-//			}
-			while (rs.next()) {
-
-			}
-
-		} catch (SQLException e) {
-			System.out.println("Error al obtener la conexión con base de datos. Url de conexión: " + url + ". Causa: "
-					+ e.getMessage());
-			e.printStackTrace();
-		}
-	}
-	
 	public void exportarCSV(ResultSet result, ResultSetMetaData rsmd, int NumOfCol) throws SQLException, IOException, MessagingException {
-		List<Map<Object, Class<?>>> lista = new ArrayList<>();
+		List<LinkedHashMap <Object, Class<?>>> lista = new ArrayList<>();
 		while (result.next()) {
 			logger.info("");
-			objeto = new HashMap<>();
+			objeto = new LinkedHashMap <>();
 			for (int i = 1; i <= NumOfCol; i++) {
 				String column = rsmd.getColumnTypeName(i).toUpperCase();
 				objeto.put(result.getObject(i), TYPE.get(column));
@@ -249,7 +234,7 @@ public class HiloExportacionFichero extends Thread {
 							fila = fila + ", " + doubleObjeto.toString();
 						}
 						break;
-					case "java.lang.BigDecimal":
+					case "java.math.BigDecimal":
 						BigDecimal bigDecimalObjeto = (BigDecimal) objeto;
 						if (filaVacia(fila)) {
 							fila = bigDecimalObjeto.toString();
@@ -339,6 +324,7 @@ public class HiloExportacionFichero extends Thread {
 	static {
 		TYPE = new HashMap<String, Class<?>>();
 
+		TYPE.put("TEXT", String.class);
 		TYPE.put("INTEGER", Integer.class);
 		TYPE.put("TINYINT", Byte.class);
 		TYPE.put("SMALLINT", Short.class);

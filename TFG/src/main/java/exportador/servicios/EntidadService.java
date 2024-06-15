@@ -2,6 +2,12 @@ package exportador.servicios;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,5 +39,43 @@ public class EntidadService {
         }
 
         return entities;
+    }
+    
+    public List<Entidad> obtenerDatos(String urlConexion, String username, String password, String nombreTabla) {
+    	Connection connection = null;
+    	List<Entidad> entidades = new ArrayList<>();
+		try {
+			connection = DriverManager.getConnection(urlConexion, username, password);
+			
+			//Se obtiene los datos de la tabla de base de datos
+			PreparedStatement selectTable = connection
+					.prepareStatement("Select * from "
+							+ nombreTabla.toLowerCase());
+			ResultSet resultado = selectTable.executeQuery();
+			
+			//Se obtiene los datos de la tabla de base de datos
+			ResultSetMetaData columnas = resultado.getMetaData();	
+			int numColumna = columnas.getColumnCount();
+			List<String> listaColumnas = new ArrayList<String>();
+			for (int i=1; i <= numColumna; ++i) {
+			    String name = columnas.getColumnName(i);
+			    listaColumnas.add(name);
+			}
+			
+			while (resultado.next()) {
+				Entidad entity = new Entidad();
+				for (int i = 1; i <= listaColumnas.size(); i++) {
+					String column =listaColumnas.get(i-1);
+					Object object = resultado.getObject(i);
+					entity.setCampos(column, object);
+				}
+				entidades.add(entity);
+			}
+		} catch (SQLException e) {
+			return entidades;
+		}
+		
+		return entidades;
+    	
     }
 }

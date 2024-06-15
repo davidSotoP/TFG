@@ -21,12 +21,10 @@ import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 
-//@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class })
 @SpringBootApplication(exclude = {UserDetailsServiceAutoConfiguration.class, HypermediaAutoConfiguration.class })
 @OpenAPIDefinition(info = @Info(title = "Exportador", version = "v1"))
 @SecurityScheme(name = "apiKey", type= SecuritySchemeType.APIKEY)
 @SecurityScheme(name = "basicAuth", type= SecuritySchemeType.HTTP, scheme = "basic")
-//@EnableJpaRepositories()
 @PropertySource("file:/C:/Users/David/Documents/TFG/application.properties")
 public class ExportadorApplication {
 

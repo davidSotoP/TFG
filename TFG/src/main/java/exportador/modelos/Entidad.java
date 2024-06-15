@@ -8,7 +8,7 @@ import lombok.Data;
 @Data
 public class Entidad {
 
-	private Map<String, Object> campos = new HashMap<>();
+	public Map<String, Object> campos = new HashMap<>();
 	
 	public void setCampos(String key, Object value) {
 		campos.put(key, value);

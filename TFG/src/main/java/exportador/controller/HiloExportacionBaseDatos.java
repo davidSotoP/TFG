@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -13,12 +14,19 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.util.CollectionUtils;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -41,13 +49,14 @@ public class HiloExportacionBaseDatos extends Thread {
 	public static Map<String, Class<?>> TYPE;
 
 	public HiloExportacionBaseDatos(String urlConexion, String username, String password, String nombreTabla, InputStream file,
-			String delimitador, String extensionFichero) {
+			String correo, String delimitador, String extensionFichero) {
 		super();
 		this.urlConexion = urlConexion;
 		this.username = username;
 		this.password = password;
 		this.nombreTabla = nombreTabla;
 		this.file = file;
+		this.correo = correo;
 		this.delimitador = delimitador;
 		this.extensionFichero = extensionFichero;
 	}
@@ -70,16 +79,42 @@ public class HiloExportacionBaseDatos extends Thread {
 			
 			InputStreamReader is = new InputStreamReader(file, "UTF-8");
 			
+			PreparedStatement obtenerUltimoValor = connection.prepareStatement(
+					"SELECT DISTINCT ON (x_oper) * FROM DC_OPERACIONES ORDER BY x_oper DESC;");
+			ResultSet checkResult = obtenerUltimoValor.executeQuery();
+			if(checkResult.next()) {
+				PreparedStatement insertNuevaEntrada = connection.prepareStatement(
+						"INSERT INTO DC_OPERACIONES(x_oper, nombre_tabla, fecha_inicio, tipo) VALUES (?,?,?,?)");
+				int primaryKey = checkResult.getInt(1);
+				insertNuevaEntrada.setObject(1, primaryKey + 1);
+				insertNuevaEntrada.setObject(2, nombreTabla);
+				insertNuevaEntrada.setObject(3, new java.sql.Date(new Date().getTime()));
+				insertNuevaEntrada.setObject(4, "Exportación");
+				insertNuevaEntrada.execute();
+				
+			} else {
+				PreparedStatement insertNuevaEntrada = connection.prepareStatement(
+						"INSERT INTO DC_OPERACIONES(x_oper, nombre_tabla, fecha_inicio, tipo) VALUES (?,?,?,?)");
+				insertNuevaEntrada.setObject(1, new BigDecimal("1"));
+				insertNuevaEntrada.setObject(2, nombreTabla);
+				insertNuevaEntrada.setObject(3, new java.sql.Date(new Date().getTime()));
+				insertNuevaEntrada.setObject(4, "Exportación");
+				insertNuevaEntrada.execute();
+			}
+			
 			if(StringUtils.equals(extensionFichero, "csv")) {
 				exportarCSV(connection, is);
 			} else if(StringUtils.equals(extensionFichero, "json")) {
 				exportJsonToDatabase(file, connection, nombreTabla);
 			}
 			
-			
+			enviarCorreo(correo);
 		} catch (SQLException e) {
 			logger.error("Error al obtener la conexión con base de datos. Url de conexión: {}. Causa: {}", urlConexion,
-					e.getMessage());
+					e.getMessage(), e);
+		} catch (MessagingException e) {
+			logger.error("Error al enviar el correo. Causa: {}",
+					e.getMessage(), e);
 		}
 	}
 	
@@ -87,22 +122,10 @@ public class HiloExportacionBaseDatos extends Thread {
 		try (BufferedReader br = new BufferedReader(is)) {
 			String line;
 			int clavePrimaria = 0;
-			boolean existeTabla = false;
 
-			PreparedStatement selectTable = connection
-					.prepareStatement("Select count(*) from information_schema.tables where table_name= '"
-							+ nombreTabla.toLowerCase() + "intermedia' LIMIT " + 1);
-			ResultSet checkTable = selectTable.executeQuery();
-			checkTable.next();
-			if (checkTable.getInt(1) != 0) {
-				logger.error("Ya existe la tabla {}", nombreTabla);
-				existeTabla = true;
-			}
-			if (!existeTabla) {
-				PreparedStatement createTable2 = connection.prepareStatement(
-						"CREATE TABLE " + nombreTabla + "Intermedia(clave varchar(500), completado varchar(1))");
-				createTable2.execute();
-			}
+			PreparedStatement createTable2 = connection.prepareStatement(
+					"CREATE TABLE IF NOT EXISTS " + nombreTabla + "Intermedia(clave varchar(500), completado varchar(1))");
+			createTable2.execute();
 
 			List<String> lineas = new ArrayList<>();
 			while ((line = br.readLine()) != null) {
@@ -153,24 +176,6 @@ public class HiloExportacionBaseDatos extends Thread {
 		String valores = StringUtils.EMPTY;
 		int i = 0;
 		int clavePrimaria = 0;
-		boolean existeTabla = false;
-
-		PreparedStatement selectTable = connection
-				.prepareStatement("Select count(*) from information_schema.tables where table_name= '"
-						+ nombreTabla.toLowerCase() + "' LIMIT " + 1);
-		ResultSet checkTable = selectTable.executeQuery();
-		checkTable.next();
-		if (checkTable.getInt(1) != 0) {
-			logger.error("Ya existe la tabla {}", nombreTabla);
-			existeTabla = true;
-		}
-		
-		if (!existeTabla) {
-			PreparedStatement createTable2 = connection.prepareStatement(
-					"CREATE TABLE " + nombreTabla + "Intermedia(clave varchar(500), completado varchar(1))");
-			createTable2.execute();
-		}
-		
 		int ultimoElemento = 0;
 
 		PreparedStatement selectLastResult = connection
@@ -179,6 +184,7 @@ public class HiloExportacionBaseDatos extends Thread {
 		ResultSet checkResult = selectLastResult.executeQuery();
 		if (!checkResult.next()) {
 			logger.info("No hay ningún registro más que migrar");
+			return;
 		} else {
 			ultimoElemento = Integer.valueOf(checkResult.getString(1));
 		}
@@ -213,14 +219,12 @@ public class HiloExportacionBaseDatos extends Thread {
 					if (j == values.length - 1) {
 						columnasCrear = columnasCrear + valor + " varchar(255)";
 						columnasInsert = columnasInsert + valor;
-						if (!existeTabla) {
-							PreparedStatement createTable = connection.prepareStatement(
-									"CREATE TABLE " + nombreTabla + "(" + columnasCrear + ")");
-							createTable.execute();
-						}
+						PreparedStatement createTable = connection.prepareStatement(
+								"CREATE TABLE IF NOT EXISTS " + nombreTabla + "(" + columnasCrear + ")");
+						createTable.execute();
 						
 					} else if (j == 0) {
-						columnasCrear = "x_tabla varchar(500)," + columnasCrear + valor + " varchar(255), ";
+						columnasCrear = "x_tabla numeric primary key," + columnasCrear + valor + " varchar(255), ";
 						columnasInsert = "x_tabla, " + columnasInsert + valor + ", ";
 					} else {
 						columnasCrear = columnasCrear + valor + " varchar(255), ";
@@ -356,6 +360,32 @@ public class HiloExportacionBaseDatos extends Thread {
             e.printStackTrace();
         }
     }
+	
+	private void enviarCorreo(String correo) throws MessagingException {
+		JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
+	    mailSender.setHost("mail.us.es");
+	    mailSender.setPort(587);
+	    
+	    mailSender.setUsername("davsotpon@alum.us.es");
+	    mailSender.setPassword("CAracteres.1999");
+	    
+	    Properties props = mailSender.getJavaMailProperties();
+        props.put("mail.transport.protocol", "smtp");
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.debug", "true");
+	    
+	    MimeMessage message = mailSender.createMimeMessage();
+	    MimeMessageHelper helper = new MimeMessageHelper(message, true);
+
+	    helper.setTo(correo);
+	    helper.setFrom(mailSender.getUsername());
+	    helper.setSubject("Resultado exportación");
+	    helper.setText("Se ha completado la exportación con éxito. Puede consultar los datos guardados en la aplicación."
+	    		+ " (Mensaje autogenerado. No responda este correo por favor)");
+
+	    mailSender.send(message);
+	}
 
 	public static void main(String[] args) throws SQLException {
 		// Estos serían los parámetros

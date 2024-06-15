@@ -1,10 +1,14 @@
 package exportador.modelos;
 
+import java.util.List;
+
 public class RespuestaExito {
 
-	private String codigoRespuesta;
+	public List<Entidad> entidades; 
 	
-	private String mensajeRespuesta;
+	public String codigoRespuesta;
+	
+	public String mensajeRespuesta;
 	
 	public String getMensajeRespuesta() {
 		return mensajeRespuesta;
@@ -20,6 +24,14 @@ public class RespuestaExito {
 
 	public void setCodigoRespuesta(String codigoRespuesta) {
 		this.codigoRespuesta = codigoRespuesta;
+	}
+
+	public List<Entidad> getEntidades() {
+		return entidades;
+	}
+
+	public void setEntidades(List<Entidad> entidades) {
+		this.entidades = entidades;
 	}
 	
 }
