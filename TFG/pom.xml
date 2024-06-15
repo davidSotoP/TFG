@@ -5,7 +5,7 @@
 	<groupId>TFG</groupId>
 	<artifactId>TFG</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<packaging>war</packaging>
+	<packaging>jar</packaging>
 	<name>Exportador genérico</name>
 	<description>Proyecto para exportar datos de forma masiva</description>
 
