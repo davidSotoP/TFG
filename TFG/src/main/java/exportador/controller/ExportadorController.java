@@ -54,6 +54,7 @@ public class ExportadorController {
 	@Autowired
 	private OperacionesService operacionesService;
 	
+	@CrossOrigin
 	@GetMapping(path = "/obtenerDatos")
 	@ApiResponses(value = { 
 			@ApiResponse(responseCode = "200", description = "Datos obtenidos con éxito", content = {
@@ -96,6 +97,7 @@ public class ExportadorController {
 		
 	}
 	
+	@CrossOrigin
 	@PostMapping(path = "/exportador/bd", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ApiResponses(value = { 
 			@ApiResponse(responseCode = "200", description = "Hilo iniciado con éxito", content = {
@@ -124,6 +126,7 @@ public class ExportadorController {
 		hilo.start();
 	}
 	
+	@CrossOrigin
 	@PostMapping(path = "/exportador/file", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	@ApiResponses(value = { 
 			@ApiResponse(responseCode = "200", description = "Hilo iniciado con éxito", content = {
