@@ -40,6 +40,7 @@ public class ExportadorApplication {
 	class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		
 		private final String[] authWhiteList = {
+				"https://fierce-sierra-21429-a701a1620b8d.herokuapp.com",
 				"/v3/api-docs/**", "/swagger-ui/**",
 				"/", "/api-docs/**",
 				"/actuator/**",
@@ -51,7 +52,9 @@ public class ExportadorApplication {
 			http.csrf().disable().authorizeRequests()
 			.antMatchers(authWhiteList).permitAll()
 			.anyRequest().authenticated();
+			
 		}
+		
 	}
 	
 
