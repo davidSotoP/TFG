@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>TFG</groupId>
 	<artifactId>TFG</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<packaging>jar</packaging>
 	<name>Exportador genérico</name>
 	<description>Proyecto para exportar datos de forma masiva</description>
@@ -125,6 +125,12 @@
 			<artifactId>postgresql</artifactId>
 			<version>42.2.6</version>
 		</dependency>
+		
+		<dependency>
+		   <groupId>org.mongodb</groupId>
+		   <artifactId>mongodb-jdbc</artifactId>
+		   <version>2.1.2</version>
+		</dependency>
 
 		<!-- Utilities -->
 
@@ -185,6 +191,12 @@
 		    <artifactId>jackson-core</artifactId>
 		    <version>2.15.2</version>
 		</dependency>
+		
+		<dependency>
+	        <groupId>com.google.code.gson</groupId>
+	        <artifactId>gson</artifactId>
+	        <version>2.10.1</version>
+	    </dependency>
 		
 	</dependencies>
 

@@ -11,20 +11,20 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import exportador.exceptions.BookIdMismatchException;
-import exportador.exceptions.BookNotFoundException;
+import exportador.exceptions.EntidadIdMismatchException;
+import exportador.exceptions.EntidadNotFoundException;
 
 @ControllerAdvice
 public class RestExceptionHandler extends ResponseEntityExceptionHandler {
 
-    @ExceptionHandler({ BookNotFoundException.class })
+    @ExceptionHandler({ EntidadNotFoundException.class })
     protected ResponseEntity<Object> handleNotFound(
       Exception ex, WebRequest request) {
         return handleExceptionInternal(ex, "Book not found", 
           new HttpHeaders(), HttpStatus.NOT_FOUND, request);
     }
 
-    @ExceptionHandler({ BookIdMismatchException.class, 
+    @ExceptionHandler({ EntidadIdMismatchException.class, 
       ConstraintViolationException.class, 
       DataIntegrityViolationException.class })
     public ResponseEntity<Object> handleBadRequest(

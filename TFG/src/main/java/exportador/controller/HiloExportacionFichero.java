@@ -1,5 +1,6 @@
 package exportador.controller;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -18,6 +19,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import javax.mail.MessagingException;
 import javax.mail.internet.MimeMessage;
@@ -26,7 +29,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.web.multipart.MultipartFile;
@@ -79,12 +82,6 @@ public class HiloExportacionFichero extends Thread {
 		Connection connection = null;
 		try {
 			connection = DriverManager.getConnection(urlConexion, username, password);
-
-			PreparedStatement select = connection.prepareStatement("Select * from " + nombreTabla.toLowerCase() + " order by x_tabla asc");
-			ResultSet result = select.executeQuery();
-			ResultSetMetaData rsmd = result.getMetaData();
-
-			int numeroCol = rsmd.getColumnCount();
 			
 			PreparedStatement obtenerUltimoValor = connection.prepareStatement(
 					"SELECT DISTINCT ON (x_oper) * FROM DC_OPERACIONES ORDER BY x_oper DESC;");
@@ -108,13 +105,19 @@ public class HiloExportacionFichero extends Thread {
 				insertNuevaEntrada.setObject(4, "Importación");
 				insertNuevaEntrada.execute();
 			}
+
+			PreparedStatement select = connection.prepareStatement("Select * from " + nombreTabla.toLowerCase());
+			ResultSet result = select.executeQuery();
+			ResultSetMetaData rsmd = result.getMetaData();
+
+			int numeroCol = rsmd.getColumnCount();
+			
 			
 			if(StringUtils.equals(extensionFichero, "csv")) {
 				exportarCSV(result, rsmd, numeroCol);
 			} else if(StringUtils.equals(extensionFichero, "json")) {
 				exportarJson(result, numeroCol);
 			}
-			
 			
 		} catch (SQLException e) {
 			logger.error("Error al obtener la conexión con base de datos. Url de conexión: {}. Causa: {}", urlConexion,
@@ -133,7 +136,7 @@ public class HiloExportacionFichero extends Thread {
 		}
 	}
 	
-	private void enviarCorreo(String correo, File file) throws MessagingException {
+	private void enviarCorreo(String correo, File file, String extension, ByteArrayResource byteArrayResource) throws MessagingException {
 		JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
 	    mailSender.setHost("mail.us.es");
 	    mailSender.setPort(587);
@@ -155,8 +158,10 @@ public class HiloExportacionFichero extends Thread {
 	    helper.setSubject("Resultado exportación");
 	    helper.setText("Mensaje autogenerado. No responda este correo por favor.");
 
-	    FileSystemResource fileEnviar = new FileSystemResource(file);
-	    helper.addAttachment("resultado.csv", fileEnviar);
+	    if(byteArrayResource != null) {
+	    	
+	    }
+	    helper.addAttachment("resultado." + extension, byteArrayResource);
 
 	    mailSender.send(message);
 	}
@@ -298,7 +303,13 @@ public class HiloExportacionFichero extends Thread {
 
 		FileUtils.writeLines(new File("C:\\Users\\David\\Documents\\TFG\\result.csv"), "UTF-8", filas);
 		File file = new File("C:\\\\Users\\\\David\\\\Documents\\\\TFG\\\\result.csv");
-		enviarCorreo(correo, file);
+		ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
+        ZipOutputStream zipOut = new ZipOutputStream(byteArray);
+        ZipEntry zipEntry = new ZipEntry(file.getName());
+        zipOut.putNextEntry(zipEntry);
+        zipOut.closeEntry();
+        zipOut.close();
+		enviarCorreo(correo, file, extensionFichero, new ByteArrayResource(byteArray.toByteArray()));
 
 	}
 	
@@ -316,9 +327,17 @@ public class HiloExportacionFichero extends Thread {
         }
 		
 		ObjectMapper mapper = new ObjectMapper();
-        mapper.writeValue(new File("C:\\Users\\David\\Documents\\TFG\\result.csv"), lista);
-        File file = new File("C:\\\\Users\\\\David\\\\Documents\\\\TFG\\\\result.csv");
-        enviarCorreo(correo, file);
+        mapper.writeValue(new File("C:\\Users\\David\\Documents\\TFG\\result.json"), lista);
+        File file = new File("C:\\\\Users\\\\David\\\\Documents\\\\TFG\\\\result.json");
+        ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
+        ZipOutputStream zipOut = new ZipOutputStream(byteArray);
+        ZipEntry zipEntry = new ZipEntry(file.getName());
+        zipOut.putNextEntry(zipEntry);
+        zipOut.closeEntry();
+        zipOut.close();
+        
+        enviarCorreo(correo, file, extensionFichero, new ByteArrayResource(byteArray.toByteArray()));
+		
 	}
 
 	static {

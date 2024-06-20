@@ -1,12 +1,12 @@
 package exportador.exceptions;
 
-public class BookNotFoundException extends RuntimeException {
+public class EntidadNotFoundException extends RuntimeException {
 
-    public BookNotFoundException(String message, Throwable cause) {
+    public EntidadNotFoundException(String message, Throwable cause) {
         super(message, cause);
     }
     
-    public BookNotFoundException(String message) {
+    public EntidadNotFoundException(String message) {
     	super(message);
     }
 }

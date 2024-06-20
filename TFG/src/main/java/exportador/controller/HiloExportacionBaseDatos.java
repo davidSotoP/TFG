@@ -1,7 +1,6 @@
 package exportador.controller;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -15,6 +14,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -25,12 +25,17 @@ import javax.mail.internet.MimeMessage;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.postgresql.copy.CopyManager;
+import org.postgresql.core.BaseConnection;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.util.CollectionUtils;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
 
 public class HiloExportacionBaseDatos extends Thread {
 
@@ -44,12 +49,13 @@ public class HiloExportacionBaseDatos extends Thread {
 	private String extensionFichero;
 	private String delimitador;
 	private String correo;
+	private boolean esExportacionRapida;
 
 	public Map<Object, Class<?>> objeto;
 	public static Map<String, Class<?>> TYPE;
 
 	public HiloExportacionBaseDatos(String urlConexion, String username, String password, String nombreTabla, InputStream file,
-			String correo, String delimitador, String extensionFichero) {
+			String correo, String delimitador, String extensionFichero, boolean esExportacionRapida) {
 		super();
 		this.urlConexion = urlConexion;
 		this.username = username;
@@ -59,6 +65,7 @@ public class HiloExportacionBaseDatos extends Thread {
 		this.correo = correo;
 		this.delimitador = delimitador;
 		this.extensionFichero = extensionFichero;
+		this.esExportacionRapida = esExportacionRapida; 
 	}
 
 	public void run() {
@@ -102,13 +109,22 @@ public class HiloExportacionBaseDatos extends Thread {
 				insertNuevaEntrada.execute();
 			}
 			
-			if(StringUtils.equals(extensionFichero, "csv")) {
-				exportarCSV(connection, is);
-			} else if(StringUtils.equals(extensionFichero, "json")) {
-				exportJsonToDatabase(file, connection, nombreTabla);
+			String resultado = StringUtils.EMPTY;
+			if(esExportacionRapida) {
+				if(StringUtils.equals(extensionFichero, "csv")) {
+					resultado = exportarCSVRapido(connection, is);
+				} else if(StringUtils.equals(extensionFichero, "json")) {
+					resultado = exportJsonToDatabaseRapido(connection, is, nombreTabla);
+				}
+			} else {
+				if(StringUtils.equals(extensionFichero, "csv")) {
+					resultado = exportarCSV(connection, is);
+				} else if(StringUtils.equals(extensionFichero, "json")) {
+					resultado = exportJsonToDatabase(file, connection, nombreTabla);
+				}
 			}
 			
-			enviarCorreo(correo);
+			enviarCorreo(correo, resultado);
 		} catch (SQLException e) {
 			logger.error("Error al obtener la conexión con base de datos. Url de conexión: {}. Causa: {}", urlConexion,
 					e.getMessage(), e);
@@ -118,7 +134,7 @@ public class HiloExportacionBaseDatos extends Thread {
 		}
 	}
 	
-	private void exportarCSV(Connection connection, InputStreamReader is) throws SQLException {
+	private String exportarCSV(Connection connection, InputStreamReader is) {
 		try (BufferedReader br = new BufferedReader(is)) {
 			String line;
 			int clavePrimaria = 0;
@@ -160,12 +176,77 @@ public class HiloExportacionBaseDatos extends Thread {
 					nombreTabla + "intermedia");
 			
 			rellenarTablaPrincipal(connection, lineas);
-		} catch (FileNotFoundException e) {
+		} catch (IOException | SQLException e) {
 			logger.error("Se ha producido un error al actualizar la tabla {}. Causa: {}", nombreTabla,
 					e.getMessage(), e);
-		} catch (IOException e) {
-			logger.error("Se ha producido un error al actualizar la tabla {}. Causa: {}", nombreTabla,
-					e.getMessage(), e);
+			return e.getMessage();
+		}
+		return "ok"; 
+	}
+	
+	private String exportarCSVRapido(Connection connection, InputStreamReader is) {
+		
+		try (BufferedReader br = new BufferedReader(is)) {
+            String header = br.readLine(); // First line is the header
+            if (header == null) {
+                throw new IOException("Empty CSV file");
+            }
+            String[] columns = header.split(",");
+
+            // Inferring data types from the first non-header line
+            String dataLine = br.readLine();
+            String[] firstRow = dataLine != null ? dataLine.split(",") : new String[0];
+            Map<String, String> columnTypes = new HashMap<>();
+
+            for (int i = 0; i < columns.length; i++) {
+                columnTypes.put(columns[i], inferDataType(firstRow[i]));
+            }
+
+            StringBuilder createTableQuery = new StringBuilder("CREATE TABLE IF NOT EXISTS " + nombreTabla + " (");
+            for (int i = 0; i < columns.length; i++) {
+                createTableQuery.append(columns[i].trim().replace(" ", "")).append(" ").append(columnTypes.get(columns[i]));
+                if (i < columns.length - 1) {
+                    createTableQuery.append(", ");
+                }
+            }
+            createTableQuery.append(");");
+
+            try (Statement stmt = connection.createStatement()) {
+                stmt.execute(createTableQuery.toString());
+                System.out.println("Table " + nombreTabla + " created successfully.");
+            }
+            CopyManager copyManager = new CopyManager((BaseConnection) connection);
+            try {
+            	copyManager.copyIn("COPY " + nombreTabla + " FROM STDIN WITH CSV HEADER", is);
+            	System.out.println("Data imported successfully.");
+            } catch (IOException e) {
+            	logger.error("Se ha producido un error al copiar los datos del fichero a la base de datos con nombre {}. Causa: {}", 
+            			nombreTabla, e.getMessage(), e);
+            	return e.getMessage();
+            }
+        } catch (IOException | SQLException e) {
+        	logger.error("Se ha producido un error al migrar los datos del fichero a la base de datos con nombre {}. Causa: {}", 
+        			nombreTabla, e.getMessage(), e);
+        	return e.getMessage();
+        }
+    
+		return "ok";
+	}
+
+	private static String inferDataType(String value) {
+		if (value == null || value.isEmpty()) {
+			return "VARCHAR";
+		}
+		try {
+			Integer.parseInt(value);
+			return "INTEGER";
+		} catch (NumberFormatException e1) {
+			try {
+				Double.parseDouble(value);
+				return "DOUBLE PRECISION";
+			} catch (NumberFormatException e2) {
+				return "VARCHAR";
+			}
 		}
 	}
 	
@@ -259,7 +340,7 @@ public class HiloExportacionBaseDatos extends Thread {
 		}
 	}
 	
-	public static void exportJsonToDatabase(InputStream file, Connection connection, String nombreTabla) {
+	public String exportJsonToDatabase(InputStream file, Connection connection, String nombreTabla) {
         try {
         	
 			ObjectMapper objectMapper = new ObjectMapper();
@@ -267,7 +348,7 @@ public class HiloExportacionBaseDatos extends Thread {
 
 			if (CollectionUtils.isEmpty(mapa)) {
 				System.out.println("El fichero JSON está vacío.");
-				return;
+				return "El fichero JSON está vacío.";
 			}
 			
 			int clavePrimaria = 1;
@@ -318,10 +399,10 @@ public class HiloExportacionBaseDatos extends Thread {
 
 			try (PreparedStatement pstmt = connection.prepareStatement(sql.toString())) {
 				
-				PreparedStatement selectTabllPrincipañ = connection
+				PreparedStatement selectTablaPrincipal = connection
 						.prepareStatement("Select count(*) from information_schema.tables where table_name= '"
 								+ nombreTabla.toLowerCase() + "' LIMIT " + 1);
-				ResultSet checkTablePrincipal = selectTabllPrincipañ.executeQuery();
+				ResultSet checkTablePrincipal = selectTablaPrincipal.executeQuery();
 				checkTablePrincipal.next();
 				if (checkTablePrincipal.getInt(1) != 0) {
 					logger.error("Ya existe la tabla {}", nombreTabla);
@@ -354,14 +435,46 @@ public class HiloExportacionBaseDatos extends Thread {
 				pstmt.executeBatch();
 			}
 
-			System.out.println("Datos exportados exitosamente");
+			System.out.println("Datos exportados de forma correcta");
 
         } catch (IOException | SQLException e) {
-            e.printStackTrace();
+        	logger.error("Se ha producido un error al exportar datos. Causa: {}", e.getMessage(), e);
+        	return e.getMessage();
         }
+        
+        return "ok";
     }
 	
-	private void enviarCorreo(String correo) throws MessagingException {
+	private String exportJsonToDatabaseRapido(Connection connection, InputStreamReader is, String nombreTabla) {
+		
+		String crearTablaIntermedia = "CREATE " + nombreTabla +" (data JSONB)";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(crearTablaIntermedia);
+            JsonReader jsonReader = new JsonReader(is);
+            try {
+            	while(jsonReader.hasNext()) {
+            		JsonElement jsonElement = JsonParser.parseReader(jsonReader);
+            		String sql = "INSERT INTO" + nombreTabla + " (data) VALUES (?::jsonb)";
+            		try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            			pstmt.setString(1, jsonElement.toString());
+            			pstmt.executeUpdate();
+            		}
+            	}
+            	jsonReader.endArray();
+            } catch (IOException e) {
+            	logger.error("Se ha producido un error al intentar leer el fichero json. Causa: {}", e.getMessage(), e);
+            	return e.getMessage();
+            }
+        } catch (SQLException e1) {
+			logger.error("Se ha producido un error al exportar el json a base de datos. Causa: {}", e1.getMessage(), e1);
+			return e1.getMessage();
+		}
+        
+    
+        return "ok";
+	}
+	
+	private void enviarCorreo(String correo, String resultado) throws MessagingException {
 		JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
 	    mailSender.setHost("mail.us.es");
 	    mailSender.setPort(587);
@@ -381,8 +494,13 @@ public class HiloExportacionBaseDatos extends Thread {
 	    helper.setTo(correo);
 	    helper.setFrom(mailSender.getUsername());
 	    helper.setSubject("Resultado exportación");
-	    helper.setText("Se ha completado la exportación con éxito. Puede consultar los datos guardados en la aplicación."
-	    		+ " (Mensaje autogenerado. No responda este correo por favor)");
+	    if(StringUtils.equals(resultado, "ok")) {
+	    	helper.setText("Se ha completado la exportación con éxito. Puede consultar los datos guardados en la aplicación."
+	    			+ " (Mensaje autogenerado. No responda este correo por favor)");
+	    	
+	    } else {
+	    	helper.setText("Se ha producido un error al realizar la operación. Causa: " + resultado);
+	    }
 
 	    mailSender.send(message);
 	}

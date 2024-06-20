@@ -1,12 +1,12 @@
 package exportador.exceptions;
 
-public class BookIdMismatchException extends RuntimeException {
+public class EntidadIdMismatchException extends RuntimeException {
 
-	public BookIdMismatchException(String message, Throwable cause) {
+	public EntidadIdMismatchException(String message, Throwable cause) {
 		super(message, cause);
 	}
 
-	public BookIdMismatchException(String message) {
+	public EntidadIdMismatchException(String message) {
     	super(message);
     }
 }

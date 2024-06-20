@@ -121,7 +121,38 @@ public class ExportadorController {
 			logger.error("Se ha producido un error al cargar el fichero proporcionado");
 			return;
 		}
-		HiloExportacionBaseDatos hilo = new HiloExportacionBaseDatos(urlConexion, username, password, nombreTabla, is , correo, delimitador, extensionFichero);
+		HiloExportacionBaseDatos hilo = new HiloExportacionBaseDatos(urlConexion, username, password, nombreTabla, is , 
+				correo, delimitador, extensionFichero, false);
+		hilo.setName("HiloExportacionBD");
+		hilo.start();
+	}
+	
+	@CrossOrigin
+	@PostMapping(path = "/exportador/bd/rapido", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@ApiResponses(value = { 
+			@ApiResponse(responseCode = "200", description = "Hilo iniciado con éxito", content = {
+					@Content(mediaType = "application/json", schema = @Schema(implementation = RespuestaExito.class)) }),
+			@ApiResponse(responseCode = "403", description = "Credenciales incorrectas", content = {
+					@Content(mediaType = "application/json", schema = @Schema(implementation = Respuesta.class)) })
+			})
+	public void exportarBDRapido(@RequestParam("urlConexion") String urlConexion,
+			@RequestParam(value= "username") String username,
+			@Parameter(schema = @Schema(type = "string", format = "password")) @RequestParam(value= "password") String password,
+			@RequestParam(value= "nombreTabla") String nombreTabla,
+			@RequestPart(value= "file") MultipartFile file,
+			@RequestParam(value= "correo") String correo,
+			@RequestParam(value= "delimitador", required = false) String delimitador) {
+		InputStream is;
+		String extensionFichero;
+		try {
+			extensionFichero = FilenameUtils.getExtension(file.getOriginalFilename());
+			is = file.getInputStream();
+		} catch (IOException e) {
+			logger.error("Se ha producido un error al cargar el fichero proporcionado");
+			return;
+		}
+		HiloExportacionBaseDatos hilo = new HiloExportacionBaseDatos(urlConexion, username, password, nombreTabla, is , 
+				correo, delimitador, extensionFichero, true);
 		hilo.setName("HiloExportacionBD");
 		hilo.start();
 	}
