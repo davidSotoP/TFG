@@ -1,16 +1,12 @@
 package exportador.controller;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -27,7 +23,6 @@ import java.util.zip.ZipOutputStream;
 import javax.mail.MessagingException;
 import javax.mail.internet.MimeMessage;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -37,10 +32,6 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.web.multipart.MultipartFile;
-
-import com.fasterxml.jackson.core.exc.StreamWriteException;
-import com.fasterxml.jackson.databind.DatabindException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class HiloExportacionFichero extends Thread {
 
@@ -111,12 +102,7 @@ public class HiloExportacionFichero extends Thread {
 				insertNuevaEntrada.execute();
 			}
 
-			if(StringUtils.equals(extensionFichero, "csv")) {
-//				exportarCSVRapido(connection);
-				exportarCSV(connection);
-			} else if(StringUtils.equals(extensionFichero, "json")) {
-				exportarJson(connection);
-			}
+			exportarRapido(connection);
 			
 		} catch (SQLException e) {
 			logger.error("Error al obtener la conexión con base de datos. Url de conexión: {}. Causa: {}", urlConexion,
@@ -135,7 +121,7 @@ public class HiloExportacionFichero extends Thread {
 		}
 	}
 	
-	private void enviarCorreo(String correo, File file, String extension, ByteArrayResource byteArrayResource) throws MessagingException {
+	private void enviarCorreo(String correo, byte[] bytes, int i) throws MessagingException {
 		JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
 	    mailSender.setHost("mail.us.es");
 	    mailSender.setPort(587);
@@ -157,220 +143,53 @@ public class HiloExportacionFichero extends Thread {
 	    helper.setSubject("Resultado exportación");
 	    helper.setText("Mensaje autogenerado. No responda este correo por favor.");
 
-	    if(byteArrayResource != null) {
-	    	
-	    }
-	    helper.addAttachment("resultado." + extension, byteArrayResource);
+		ByteArrayResource byteArrayResource = new ByteArrayResource(bytes);
+		helper.addAttachment("resultado" + i + ".zip", byteArrayResource);
 
 	    mailSender.send(message);
 	}
 
-	public void exportarCSV(Connection connection) throws SQLException, IOException, MessagingException {
-		
-		PreparedStatement select = connection.prepareStatement("Select * from " + nombreTabla.toLowerCase());
-		ResultSet result = select.executeQuery();
-		ResultSetMetaData rsmd = result.getMetaData();
-
-		int numeroCol = rsmd.getColumnCount();
-		
-		List<LinkedHashMap <Object, Class<?>>> lista = new ArrayList<>();
-		while (result.next()) {
-			logger.info("");
-			objeto = new LinkedHashMap <>();
-			for (int i = 1; i <= numeroCol; i++) {
-				String column = rsmd.getColumnTypeName(i).toUpperCase();
-				objeto.put(result.getObject(i), TYPE.get(column));
-			}
-			lista.add(objeto);
-		}
-		
-		List<String> filas = new ArrayList<>();
-		for (Map<Object, Class<?>> mapa : lista) {
-			String fila = StringUtils.EMPTY;
-			for (Object objeto : mapa.keySet()) {
-				Class<?> clase = mapa.get(objeto);
-				String claseString = clase.getName();
-				switch (claseString) {
-					case "java.lang.Integer":
-						Integer numero = (Integer) objeto;
-						if (filaVacia(fila)) {
-							fila = numero.toString();
-						} else {
-
-							fila = fila + ", " + numero;
-						}
-						break;
-					case "java.lang.Byte":
-						Byte byteObjeto = (Byte) objeto;
-						if (filaVacia(fila)) {
-							fila = byteObjeto.toString();
-						} else {
-
-							fila = fila + ", " + byteObjeto.toString();
-						}
-						break;
-					case "java.lang.Short":
-						Short shortObjeto = (Short) objeto;
-						if (filaVacia(fila)) {
-							fila = shortObjeto.toString();
-						} else {
-
-							fila = fila + ", " + shortObjeto.toString();
-						}
-						break;
-					case "java.lang.Long":
-						Long longObjeto = (Long) objeto;
-						if (filaVacia(fila)) {
-							fila = longObjeto.toString();
-						} else {
-							fila = fila + ", " + longObjeto.toString();
-
-						}
-						break;
-					case "java.lang.Float":
-						Float floatObjeto = (Float) objeto;
-						if (filaVacia(fila)) {
-							fila = floatObjeto.toString();
-						} else {
-
-							fila = fila + ", " + floatObjeto.toString();
-						}
-						break;
-					case "java.lang.Double":
-						Double doubleObjeto = (Double) objeto;
-						if (filaVacia(fila)) {
-							fila = doubleObjeto.toString();
-						} else {
-
-							fila = fila + ", " + doubleObjeto.toString();
-						}
-						break;
-					case "java.math.BigDecimal":
-						BigDecimal bigDecimalObjeto = (BigDecimal) objeto;
-						if (filaVacia(fila)) {
-							fila = bigDecimalObjeto.toString();
-						} else {
-
-							fila = fila + ", " + bigDecimalObjeto.toString();
-						}
-						break;
-					case "java.lang.Boolean":
-						Boolean booleanObjeto = (Boolean) objeto;
-						if (filaVacia(fila)) {
-							fila = booleanObjeto.toString();
-						} else {
-
-							fila = fila + ", " + booleanObjeto.toString();
-						}
-						break;
-					case "java.lang.String":
-						String stringObjeto = (String) objeto;
-						if (filaVacia(fila)) {
-							fila = stringObjeto.toString();
-						} else {
-
-							fila = fila + ", " + stringObjeto;
-						}
-						break;
-					case "java.lang.Date":
-						Date dateObjeto = (Date) objeto;
-						if (filaVacia(fila)) {
-							fila = dateObjeto.toString();
-						} else {
-
-							fila = fila + ", " + dateObjeto.toString();
-						}
-						break;
-					case "java.lang.Time":
-						Time timeObjeto = (Time) objeto;
-						if (filaVacia(fila)) {
-							fila = timeObjeto.toString();
-						} else {
-
-							fila = fila + ", " + timeObjeto.toString();
-						}
-						break;
-					case "java.lang.Timestamp":
-						Timestamp timestampObjeto = (Timestamp) objeto;
-						if (filaVacia(fila)) {
-							fila = timestampObjeto.toString();
-						} else {
-
-							fila = fila + ", " + timestampObjeto.toString();
-						}
-						break;
-					default:
-						logger.error("El tipo {} no está completado en la aplicación", claseString);
-						return;
-					}
-			}
-			filas.add(fila);
-		}
-
-		FileUtils.writeLines(new File("result.csv"), "UTF-8", filas);
-		File file = new File("result.csv");
-		ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
-        ZipOutputStream zipOut = new ZipOutputStream(byteArray);
-        ZipEntry zipEntry = new ZipEntry(file.getName());
-        zipOut.putNextEntry(zipEntry);
-        zipOut.closeEntry();
-        zipOut.close();
-		enviarCorreo(correo, file, extensionFichero, new ByteArrayResource(byteArray.toByteArray()));
-
-	}
-	
-	public void exportarCSVRapido(Connection connection) throws SQLException, IOException, MessagingException {
+	public void exportarRapido(Connection connection) throws SQLException, IOException, MessagingException {
+		ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream(); 
 		String copyQuery = "COPY " + nombreTabla + " TO STDOUT WITH CSV HEADER";
-		File file = new File("result.csv");
-		OutputStream outputStream = new FileOutputStream(file);
 		
 		CopyManager copyManager = new CopyManager((BaseConnection) connection);
-        copyManager.copyOut(copyQuery, outputStream);
+        copyManager.copyOut(copyQuery, byteArrayOutput);
+        
+        List<byte[]> zipData = dividirArchivoZIP(byteArrayOutput.toByteArray());
 
-        ZipOutputStream zipOut = new ZipOutputStream(outputStream);
-        ZipEntry zipEntry = new ZipEntry(file.getName());
-        zipOut.putNextEntry(zipEntry);
-        zipOut.closeEntry();
-        zipOut.close();
-        ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream(); 
-        byteArrayOutput.writeTo(outputStream); 
-        byteArrayOutput.toByteArray();
-		enviarCorreo(correo, file, extensionFichero, new ByteArrayResource(byteArrayOutput.toByteArray()));
+        int i = 1;
+        for(byte[] correoData: zipData) {
+        	enviarCorreo(correo, correoData, i);
+        	i++;
+        }
 
 	}
 	
-	public void exportarJson(Connection connection) throws SQLException, StreamWriteException, DatabindException, IOException, MessagingException {
-		List<Map<String, Object>> lista = new ArrayList<>();
-		
-		PreparedStatement select = connection.prepareStatement("Select * from " + nombreTabla.toLowerCase());
-		ResultSet result = select.executeQuery();
-		ResultSetMetaData rsmd = result.getMetaData();
+	private List<byte[]> dividirArchivoZIP(byte[] zip) throws IOException {
+		List<byte[]> partes = new ArrayList<>();
+        int start = 0;
+        int parteNumero = 1;
 
-		int numeroCol = rsmd.getColumnCount();
-		
-		while (result.next()) {
-            Map<String, Object> row = new HashMap<>();
-            for (int i = 1; i <= numeroCol; i++) {
-                String columnName = result.getMetaData().getColumnName(i);
-                Object value = result.getObject(i);
-                row.put(columnName, value);
+        while (start < zip.length) {
+            ByteArrayOutputStream zipByteArrayOutput = new ByteArrayOutputStream();
+            try (ZipOutputStream zipOut = new ZipOutputStream(zipByteArrayOutput)) {
+                ZipEntry zipEntry = new ZipEntry("result" + parteNumero + "." + extensionFichero);
+                zipOut.putNextEntry(zipEntry);
+
+                int tamanoParte = Math.min(75 * 1024 * 1024, zip.length - start);
+                zipOut.write(zip, start, tamanoParte);
+                zipOut.closeEntry();
             }
-            lista.add(row);
+
+            partes.add(zipByteArrayOutput.toByteArray());
+            start += 25 * 1024 * 1024;
+            parteNumero++;
         }
-		
-		ObjectMapper mapper = new ObjectMapper();
-        mapper.writeValue(new File("result.json"), lista);
-        File file = new File("result.json");
-        ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
-        ZipOutputStream zipOut = new ZipOutputStream(byteArray);
-        ZipEntry zipEntry = new ZipEntry(file.getName());
-        zipOut.putNextEntry(zipEntry);
-        zipOut.closeEntry();
-        zipOut.close();
-        
-        enviarCorreo(correo, file, extensionFichero, new ByteArrayResource(byteArray.toByteArray()));
-		
+
+        return partes;
 	}
+	
 
 	static {
 		TYPE = new HashMap<String, Class<?>>();
