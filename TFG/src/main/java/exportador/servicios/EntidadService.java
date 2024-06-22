@@ -50,7 +50,7 @@ public class EntidadService {
 			//Se obtiene los datos de la tabla de base de datos
 			PreparedStatement selectTable = connection
 					.prepareStatement("Select * from "
-							+ nombreTabla.toLowerCase());
+							+ nombreTabla.toLowerCase() + " LIMIT 500");
 			ResultSet resultado = selectTable.executeQuery();
 			
 			//Se obtiene los datos de la tabla de base de datos
