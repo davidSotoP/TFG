@@ -301,8 +301,8 @@ public class HiloExportacionFichero extends Thread {
 			filas.add(fila);
 		}
 
-		FileUtils.writeLines(new File("C:\\Users\\David\\Documents\\TFG\\result.csv"), "UTF-8", filas);
-		File file = new File("C:\\\\Users\\\\David\\\\Documents\\\\TFG\\\\result.csv");
+		FileUtils.writeLines(new File("result.csv"), "UTF-8", filas);
+		File file = new File("result.csv");
 		ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
         ZipOutputStream zipOut = new ZipOutputStream(byteArray);
         ZipEntry zipEntry = new ZipEntry(file.getName());
@@ -327,8 +327,8 @@ public class HiloExportacionFichero extends Thread {
         }
 		
 		ObjectMapper mapper = new ObjectMapper();
-        mapper.writeValue(new File("C:\\Users\\David\\Documents\\TFG\\result.json"), lista);
-        File file = new File("C:\\\\Users\\\\David\\\\Documents\\\\TFG\\\\result.json");
+        mapper.writeValue(new File("result.json"), lista);
+        File file = new File("result.json");
         ByteArrayOutputStream byteArray = new ByteArrayOutputStream();
         ZipOutputStream zipOut = new ZipOutputStream(byteArray);
         ZipEntry zipEntry = new ZipEntry(file.getName());

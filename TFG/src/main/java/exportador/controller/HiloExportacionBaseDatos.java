@@ -9,7 +9,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -135,8 +134,8 @@ public class HiloExportacionBaseDatos extends Thread {
 	}
 	
 	private String exportarCSV(Connection connection, InputStreamReader is) {
-		try (BufferedReader br = new BufferedReader(is)) {
-			String line;
+		try (BufferedReader buffer = new BufferedReader(is)) {
+			String linea;
 			int clavePrimaria = 0;
 
 			PreparedStatement createTable2 = connection.prepareStatement(
@@ -144,17 +143,16 @@ public class HiloExportacionBaseDatos extends Thread {
 			createTable2.execute();
 
 			List<String> lineas = new ArrayList<>();
-			while ((line = br.readLine()) != null) {
-				lineas.add(line);
+			while ((linea = buffer.readLine()) != null) {
+				lineas.add(linea);
 				if (clavePrimaria == 0) {
 					clavePrimaria++;
 					continue;
 				}
-				StringBuilder sb = new StringBuilder(line);
+				StringBuilder sb = new StringBuilder(linea);
 				sb.replace(0, 1, "");
 				sb.replace(sb.length() - 1, sb.length(), "");
-				line = sb.toString();
-				String[] values = line.split(";");
+				linea = sb.toString();
 
 				PreparedStatement selectLastResult = connection
 						.prepareStatement("Select clave from " + nombreTabla.toLowerCase()
@@ -186,26 +184,38 @@ public class HiloExportacionBaseDatos extends Thread {
 	
 	private String exportarCSVRapido(Connection connection, InputStreamReader is) {
 		
-		try (BufferedReader br = new BufferedReader(is)) {
-            String header = br.readLine(); // First line is the header
-            if (header == null) {
+		try (BufferedReader buffer = new BufferedReader(is)) {
+            String lineaCabecera = buffer.readLine();
+            if (lineaCabecera == null) {
                 throw new IOException("Empty CSV file");
             }
-            String[] columns = header.split(",");
+            
+            
+            String[] columnas;
+            String[] primeraLinea;
+            if (StringUtils.isNotBlank(delimitador)) {
+            	columnas = lineaCabecera.split(delimitador);
+            } else {
+            	columnas = lineaCabecera.split(",");
+            }
+            
+            String lineaDatos = buffer.readLine();
+            Map<String, String> tiposColumnas = new HashMap<>();
+            
+            if (StringUtils.isNotBlank(delimitador)) {
+            	primeraLinea = lineaDatos != null ? lineaDatos.split(delimitador) : new String[0];
+            } else {
+            	primeraLinea = lineaDatos != null ? lineaDatos.split(",") : new String[0];
+            }
 
-            // Inferring data types from the first non-header line
-            String dataLine = br.readLine();
-            String[] firstRow = dataLine != null ? dataLine.split(",") : new String[0];
-            Map<String, String> columnTypes = new HashMap<>();
-
-            for (int i = 0; i < columns.length; i++) {
-                columnTypes.put(columns[i], inferDataType(firstRow[i]));
+            for (int i = 0; i < columnas.length; i++) {
+                tiposColumnas.put(columnas[i], obtenerTipos(primeraLinea[i]));
             }
 
             StringBuilder createTableQuery = new StringBuilder("CREATE TABLE IF NOT EXISTS " + nombreTabla + " (");
-            for (int i = 0; i < columns.length; i++) {
-                createTableQuery.append(columns[i].trim().replace(" ", "")).append(" ").append(columnTypes.get(columns[i]));
-                if (i < columns.length - 1) {
+            for (int i = 0; i < columnas.length; i++) {
+                createTableQuery.append(columnas[i].trim().replace(" ", "")).append(" ").append(tiposColumnas.get(columnas[i]));
+                if (i < columnas.length - 1) {
                     createTableQuery.append(", ");
                 }
             }
@@ -218,7 +228,7 @@ public class HiloExportacionBaseDatos extends Thread {
             CopyManager copyManager = new CopyManager((BaseConnection) connection);
             try {
             	copyManager.copyIn("COPY " + nombreTabla + " FROM STDIN WITH CSV HEADER", is);
-            	System.out.println("Data imported successfully.");
+            	logger.info("Tabla copiada con éxito.");
             } catch (IOException e) {
             	logger.error("Se ha producido un error al copiar los datos del fichero a la base de datos con nombre {}. Causa: {}", 
             			nombreTabla, e.getMessage(), e);
@@ -233,7 +243,7 @@ public class HiloExportacionBaseDatos extends Thread {
 		return "ok";
 	}
 
-	private static String inferDataType(String value) {
+	private static String obtenerTipos(String value) {
 		if (value == null || value.isEmpty()) {
 			return "VARCHAR";
 		}
@@ -270,12 +280,12 @@ public class HiloExportacionBaseDatos extends Thread {
 			ultimoElemento = Integer.valueOf(checkResult.getString(1));
 		}
 		
-		for (String line : lineas) {
-			StringBuilder sb = new StringBuilder(line);
+		for (String linea : lineas) {
+			StringBuilder sb = new StringBuilder(linea);
 			sb.replace(0, 1, "");
 			sb.replace(sb.length() - 1, sb.length(), "");
-			line = sb.toString();
-			String[] values = line.split(";");
+			linea = sb.toString();
+			String[] values = linea.split(";");
 			
 			if (i != 0) {
 				while (clavePrimaria < ultimoElemento) {
@@ -435,7 +445,7 @@ public class HiloExportacionBaseDatos extends Thread {
 				pstmt.executeBatch();
 			}
 
-			System.out.println("Datos exportados de forma correcta");
+			logger.info("Datos exportados de forma correcta");
 
         } catch (IOException | SQLException e) {
         	logger.error("Se ha producido un error al exportar datos. Causa: {}", e.getMessage(), e);
@@ -503,40 +513,6 @@ public class HiloExportacionBaseDatos extends Thread {
 	    }
 
 	    mailSender.send(message);
-	}
-
-	public static void main(String[] args) throws SQLException {
-		// Estos serían los parámetros
-		String url = "jdbc:postgresql://localhost:5432/postgres";
-		String user = "postgres";
-		String password = "postgres";
-		String nombreTabla = "PRUEBA";
-
-		Connection connection = null;
-		try {
-			connection = DriverManager.getConnection(url, user, password);
-			Statement stm = connection.createStatement();
-			PreparedStatement createTable = connection.prepareStatement("SELECT * FROM " + nombreTabla);
-			ResultSet rs = createTable.executeQuery();
-			ResultSetMetaData columnas = rs.getMetaData();
-			int numColumna = columnas.getColumnCount();
-			// TODO Pegar datos al csv
-//			for (int i=0; i < numColumna; ++i) {
-//			    String name = columnas.getColumnName(i+1);
-//			    if (i > 0) {
-//			        sb.append(", ");
-//			    }
-//			    sb.append(name);
-//			}
-			while (rs.next()) {
-
-			}
-
-		} catch (SQLException e) {
-			System.out.println("Error al obtener la conexión con base de datos. Url de conexión: " + url + ". Causa: "
-					+ e.getMessage());
-			e.printStackTrace();
-		}
 	}
 
 }

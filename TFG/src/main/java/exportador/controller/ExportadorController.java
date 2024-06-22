@@ -2,13 +2,6 @@ package exportador.controller;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
 
 import org.apache.commons.io.FilenameUtils;
@@ -172,37 +165,4 @@ public class ExportadorController {
 		hilo.start();
 	}
 	
-	public static void main(String[] args) throws SQLException {
-		// Estos serían los parámetros
-		String url = "jdbc:postgresql://localhost:5432/postgres";
-		String user = "postgres";
-		String password = "postgres";
-		String nombreTabla = "PRUEBA";
-
-		Connection connection = null;
-		try {
-			connection = DriverManager.getConnection(url, user, password);
-			Statement stm = connection.createStatement();
-			PreparedStatement createTable = connection.prepareStatement("SELECT * FROM " + nombreTabla);
-			ResultSet rs = createTable.executeQuery();
-			ResultSetMetaData columnas = rs.getMetaData();
-			int numColumna = columnas.getColumnCount();
-			// TODO Pegar datos al csv
-//			for (int i=0; i < numColumna; ++i) {
-//			    String name = columnas.getColumnName(i+1);
-//			    if (i > 0) {
-//			        sb.append(", ");
-//			    }
-//			    sb.append(name);
-//			}
-			while (rs.next()) {
-
-			}
-
-		} catch (SQLException e) {
-			System.out.println("Error al obtener la conexión con base de datos. Url de conexión: " + url + ". Causa: "
-					+ e.getMessage());
-			e.printStackTrace();
-		}
-	}
 }
