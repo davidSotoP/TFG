@@ -41,7 +41,7 @@ public class ExportadorApplication {
 	class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		
 		private final String[] authWhiteList = {
-				"https://reacttfg-f587ac1e7f28.herokuapp.com/",
+				"https://reacttfg-f587ac1e7f28.herokuapp.com/*",
 				"/v3/api-docs/**", "/swagger-ui/**",
 				"/", "/api-docs/**",
 				"/actuator/**",
