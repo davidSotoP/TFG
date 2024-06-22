@@ -85,8 +85,9 @@ public class HiloExportacionFichero extends Thread {
 
 		Connection connection = null;
 		try {
+			logger.info("Se conecta a la base de datos");
 			connection = DriverManager.getConnection(urlConexion, username, password);
-			
+			logger.info("Conectado");
 			PreparedStatement obtenerUltimoValor = connection.prepareStatement(
 					"SELECT DISTINCT ON (x_oper) * FROM DC_OPERACIONES ORDER BY x_oper DESC;");
 			ResultSet checkResult = obtenerUltimoValor.executeQuery();
