@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.hateoas.HypermediaAutoConfiguratio
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -24,7 +25,7 @@ import io.swagger.v3.oas.annotations.security.SecurityScheme;
 @OpenAPIDefinition(info = @Info(title = "Exportador", version = "v1"))
 @SecurityScheme(name = "apiKey", type= SecuritySchemeType.APIKEY)
 @SecurityScheme(name = "basicAuth", type= SecuritySchemeType.HTTP, scheme = "basic")
-//@PropertySource("file:/C:/Users/David/Documents/TFG/application.properties")
+@PropertySource("file:/C:/Users/David/Documents/TFG/application.properties")
 public class ExportadorApplication {
 
 	
@@ -40,7 +41,7 @@ public class ExportadorApplication {
 	class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		
 		private final String[] authWhiteList = {
-				"https://fierce-sierra-21429-a701a1620b8d.herokuapp.com",
+				"https://reacttfg-f587ac1e7f28.herokuapp.com/",
 				"/v3/api-docs/**", "/swagger-ui/**",
 				"/", "/api-docs/**",
 				"/actuator/**",
