@@ -2,7 +2,9 @@ package exportador.controller;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -29,6 +31,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.postgresql.copy.CopyManager;
+import org.postgresql.core.BaseConnection;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -106,17 +110,10 @@ public class HiloExportacionFichero extends Thread {
 				insertNuevaEntrada.execute();
 			}
 
-			PreparedStatement select = connection.prepareStatement("Select * from " + nombreTabla.toLowerCase());
-			ResultSet result = select.executeQuery();
-			ResultSetMetaData rsmd = result.getMetaData();
-
-			int numeroCol = rsmd.getColumnCount();
-			
-			
 			if(StringUtils.equals(extensionFichero, "csv")) {
-				exportarCSV(result, rsmd, numeroCol);
+				exportarCSVRapido(connection);
 			} else if(StringUtils.equals(extensionFichero, "json")) {
-				exportarJson(result, numeroCol);
+				exportarJson(connection);
 			}
 			
 		} catch (SQLException e) {
@@ -313,12 +310,38 @@ public class HiloExportacionFichero extends Thread {
 
 	}
 	
-	public void exportarJson(ResultSet result, int NumOfCol) throws SQLException, StreamWriteException, DatabindException, IOException, MessagingException {
+	public void exportarCSVRapido(Connection connection) throws SQLException, IOException, MessagingException {
+		String copyQuery = "COPY " + nombreTabla + " TO STDOUT WITH CSV HEADER";
+		File file = new File("result.csv");
+		OutputStream outputStream = new FileOutputStream(file);
+		
+		CopyManager copyManager = new CopyManager((BaseConnection) connection);
+        copyManager.copyOut(copyQuery, outputStream);
+
+        ZipOutputStream zipOut = new ZipOutputStream(outputStream);
+        ZipEntry zipEntry = new ZipEntry(file.getName());
+        zipOut.putNextEntry(zipEntry);
+        zipOut.closeEntry();
+        zipOut.close();
+        ByteArrayOutputStream byteArrayOutput = new ByteArrayOutputStream(); 
+        byteArrayOutput.writeTo(outputStream); 
+        byteArrayOutput.toByteArray();
+		enviarCorreo(correo, file, extensionFichero, new ByteArrayResource(byteArrayOutput.toByteArray()));
+
+	}
+	
+	public void exportarJson(Connection connection) throws SQLException, StreamWriteException, DatabindException, IOException, MessagingException {
 		List<Map<String, Object>> lista = new ArrayList<>();
+		
+		PreparedStatement select = connection.prepareStatement("Select * from " + nombreTabla.toLowerCase());
+		ResultSet result = select.executeQuery();
+		ResultSetMetaData rsmd = result.getMetaData();
+
+		int numeroCol = rsmd.getColumnCount();
 		
 		while (result.next()) {
             Map<String, Object> row = new HashMap<>();
-            for (int i = 1; i <= NumOfCol; i++) {
+            for (int i = 1; i <= numeroCol; i++) {
                 String columnName = result.getMetaData().getColumnName(i);
                 Object value = result.getObject(i);
                 row.put(columnName, value);
