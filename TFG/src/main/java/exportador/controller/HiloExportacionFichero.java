@@ -112,7 +112,8 @@ public class HiloExportacionFichero extends Thread {
 			}
 
 			if(StringUtils.equals(extensionFichero, "csv")) {
-				exportarCSVRapido(connection);
+//				exportarCSVRapido(connection);
+				exportarCSV(connection);
 			} else if(StringUtils.equals(extensionFichero, "json")) {
 				exportarJson(connection);
 			}
@@ -164,12 +165,19 @@ public class HiloExportacionFichero extends Thread {
 	    mailSender.send(message);
 	}
 
-	public void exportarCSV(ResultSet result, ResultSetMetaData rsmd, int NumOfCol) throws SQLException, IOException, MessagingException {
+	public void exportarCSV(Connection connection) throws SQLException, IOException, MessagingException {
+		
+		PreparedStatement select = connection.prepareStatement("Select * from " + nombreTabla.toLowerCase());
+		ResultSet result = select.executeQuery();
+		ResultSetMetaData rsmd = result.getMetaData();
+
+		int numeroCol = rsmd.getColumnCount();
+		
 		List<LinkedHashMap <Object, Class<?>>> lista = new ArrayList<>();
 		while (result.next()) {
 			logger.info("");
 			objeto = new LinkedHashMap <>();
-			for (int i = 1; i <= NumOfCol; i++) {
+			for (int i = 1; i <= numeroCol; i++) {
 				String column = rsmd.getColumnTypeName(i).toUpperCase();
 				objeto.put(result.getObject(i), TYPE.get(column));
 			}
