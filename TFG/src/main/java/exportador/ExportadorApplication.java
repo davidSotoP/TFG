@@ -6,7 +6,6 @@ import org.springframework.boot.autoconfigure.hateoas.HypermediaAutoConfiguratio
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -27,7 +26,7 @@ import io.swagger.v3.oas.annotations.security.SecurityScheme;
 @OpenAPIDefinition(info = @Info(title = "Exportador", version = "v1"))
 @SecurityScheme(name = "apiKey", type= SecuritySchemeType.APIKEY)
 @SecurityScheme(name = "basicAuth", type= SecuritySchemeType.HTTP, scheme = "basic")
-@PropertySource("file:/C:/Users/David/Documents/TFG/application.properties")
+//@PropertySource("file:/C:/Users/David/Documents/TFG/application.properties")
 public class ExportadorApplication implements WebMvcConfigurer{
 
 	
@@ -52,7 +51,7 @@ public class ExportadorApplication implements WebMvcConfigurer{
 		
 		@Override
 		protected void configure(HttpSecurity http) throws Exception {
-			http.csrf().disable().authorizeRequests()
+			http.cors().and().csrf().disable().authorizeRequests()
 			.antMatchers(authWhiteList).permitAll()
 			.anyRequest().authenticated();
 			
