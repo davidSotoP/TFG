@@ -28,7 +28,7 @@ import io.swagger.v3.oas.annotations.security.SecurityScheme;
 @SecurityScheme(name = "apiKey", type= SecuritySchemeType.APIKEY)
 @SecurityScheme(name = "basicAuth", type= SecuritySchemeType.HTTP, scheme = "basic")
 @PropertySource("file:/C:/Users/David/Documents/TFG/application.properties")
-public class ExportadorApplication {
+public class ExportadorApplication implements WebMvcConfigurer{
 
 	
 	public static void main(String[] args) {
@@ -60,18 +60,11 @@ public class ExportadorApplication {
 		
 	}
 	
-	@Bean
-	public WebMvcConfigurer corsConfigurer() {
-	    return new WebMvcConfigurer() {
-	        @Override
-	        public void addCorsMappings(CorsRegistry registry) {
-	            registry.addMapping("/**")
-	                    .allowedOrigins("*")
-	                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-	                    .allowedHeaders("*")
-	                    .exposedHeaders("Authorization");
-	        }
-	    };
+	@Override
+	public void addCorsMappings(CorsRegistry registry) {
+		registry.addMapping("/**").allowedOrigins("*")
+				.allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS").allowedHeaders("*")
+				.exposedHeaders("Authorization").allowCredentials(true).maxAge(3600);
 	}
 	
 
