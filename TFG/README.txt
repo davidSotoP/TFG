@@ -1,1 +1,1 @@
-https://stackoverflow.com/questions/70376623/create-react-app-says-create-react-app-requires-node-14-or-higher-fixing-node
+En este repositorio se encuentra la aplicación de Expotify, la cual permite exportar e importar datos a tu base de datos.
