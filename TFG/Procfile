@@ -1,1 +1,1 @@
-web: java $JAVA_OPTS -Dserver.port=$PORT -Dspring.profiles.default=heroku -jar target/TFG-1.0.0.jar
+web: java $JAVA_OPTS -Dserver.port=$PORT -Xmx2g -Dspring.profiles.default=heroku -jar target/TFG-1.0.0.jar
